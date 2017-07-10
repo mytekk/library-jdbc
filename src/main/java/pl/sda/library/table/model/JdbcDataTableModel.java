@@ -13,9 +13,9 @@ public class JdbcDataTableModel extends CrudDataTableModel {
 
 	//dodane
 	private static final String DB_DRIVER = "com.mysql.jdbc.Driver";
-	private static final String DB_URL = "jdbc:mysql://XXX/XXX?useSSL=false";
-	private static final String DB_USER = "XXX";
-	private static final String DB_PASSWORD = "XXX";
+	private static final String DB_URL = "jdbc:mysql://xxx/xxx?useSSL=false";
+	private static final String DB_USER = "xxx";
+	private static final String DB_PASSWORD = "xxx";
 	//dodane
 
 	public JdbcDataTableModel() {
@@ -58,7 +58,9 @@ public class JdbcDataTableModel extends CrudDataTableModel {
 		}
 		finally {
             try {
-                connection.close();
+				if (connection != null) { //jesli driver manager nie zadziala (np.zle haslo)
+					connection.close();		//to tutaj connection bedzie nullem
+				}
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -116,7 +118,9 @@ public class JdbcDataTableModel extends CrudDataTableModel {
         }
         finally {
             try {
-                connection.close();
+				if (connection != null) { //jesli driver manager nie zadziala (np.zle haslo)
+					connection.close();		//to tutaj connection bedzie nullem
+				}
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -155,7 +159,9 @@ public class JdbcDataTableModel extends CrudDataTableModel {
 		}
 		finally {
 			try {
-				connection.close();
+				if (connection != null) { //jesli driver manager nie zadziala (np.zle haslo)
+					connection.close();		//to tutaj connection bedzie nullem
+				}
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}
@@ -169,6 +175,7 @@ public class JdbcDataTableModel extends CrudDataTableModel {
         Connection connection = null;
         try {
             connection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+            connection.setAutoCommit(false);
 
             PreparedStatement statement = connection.prepareStatement("insert into author(first_name, last_name) " +
                     "values (?, ?)", Statement.RETURN_GENERATED_KEYS);
@@ -191,12 +198,21 @@ public class JdbcDataTableModel extends CrudDataTableModel {
             statement2.setInt(2, authorId);
             statement2.executeUpdate();
             statement2.close();
+
+            connection.commit();
         } catch (SQLException e) {
             e.printStackTrace();
-        }
+			try {
+				connection.rollback();
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			}
+		}
         finally {
             try {
-                connection.close();
+				if (connection != null) { //jesli driver manager nie zadziala (np.zle haslo)
+					connection.close();		//to tutaj connection bedzie nullem
+				}
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -208,12 +224,92 @@ public class JdbcDataTableModel extends CrudDataTableModel {
 	@Override
 	public void update(Book book) {
 		//TODO modyfikacja książki
+		//w argumencie book mam juz obiekt, ktory zawiera ksiazke o zadanym id, wraz z zmienionymi juz polami!
+		Connection connection = null;
+		try {
+			connection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+			connection.setAutoCommit(false);
+
+
+
+			PreparedStatement statement = connection.prepareStatement("update book b set " +
+					"b.title = ? where b.id = ?");
+			statement.setString(1, book.getTitle());
+			statement.setInt(2, book.getId());
+
+			statement.executeUpdate();
+			statement.close();
+
+
+			PreparedStatement statement2 = connection.prepareStatement("update author a set a.first_name = ?, a.last_name = ? " +
+					"where a.id = (select author_id from book where id = ?)");
+			statement2.setString(1, book.getAuthorFirstName());
+			statement2.setString(2, book.getAuthorLastName());
+			statement2.setInt(3, book.getId());
+
+			statement2.executeUpdate();
+			statement2.close();
+
+			connection.commit();
+		} catch (SQLException e) {
+			e.printStackTrace();
+			try {
+				connection.rollback();
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			}
+		} finally {
+			try {
+				if (connection != null) { //jesli driver manager nie zadziala (np.zle haslo)
+					connection.close();		//to tutaj connection bedzie nullem
+				}
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+
         refresh();
 	}
 
 	@Override
 	public void delete(Book book) {
 		//TODO usunięcie książki
+		Connection connection = null;
+
+		try {
+			connection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+			connection.setAutoCommit(false);
+
+			PreparedStatement statement = connection.prepareStatement("delete from book_category where book_id = ?");
+			statement.setInt(1, book.getId());
+
+			statement.executeUpdate();
+			statement.close();
+
+			PreparedStatement statement2 = connection.prepareStatement("delete from book where id = ?");
+			statement2.setInt(1, book.getId());
+
+			statement2.executeUpdate();
+			statement2.close();
+
+			connection.commit();
+		} catch (SQLException e) {
+			e.printStackTrace();
+			try {
+				connection.rollback();
+			} catch (SQLException e1) {
+				e1.printStackTrace();
+			}
+		} finally {
+			try {
+				if (connection != null) { //jesli driver manager nie zadziala (np.zle haslo)
+					connection.close();		//to tutaj connection bedzie nullem
+				}
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+
 		refresh();
 	}
 
